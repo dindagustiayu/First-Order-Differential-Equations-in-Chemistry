@@ -187,7 +187,7 @@ plt.show()
 </div>
 
 <p align='center'>
-Figure 1. Numerical anad analytical solutions to the ordinary differential equation governing the decomposition of $[N_2 O_5]$.
+Figure 1. Numerical and analytical solutions to the ordinary differential equation governing the decomposition of $[N_2 O_5]$.
 </p>
 
 The resulting plot demonstrates that the numerical algorithm was able to follow the true solution accurately in this case.
@@ -215,15 +215,15 @@ with rate constants  $k_1$ and $k_2$.
 
 The equations governing the rate of change of A and B are
 <p align='center'>
-    $$\begin{align} \frac{d[A]}{dt} &= -k_1 [A] \\ \frac{d[B]}{dt} &= k_1[A] -k_2 [B] \end{align}$$
+    $$\begin{align} \frac{d[A]}{dt} &= -k_1 [A] \quad (6) \\ \frac{d[B]}{dt} &= k_1[A] -k_2 [B] \quad(7) \end{align}$$
 </p>
 
 We can solve this pair of coupled equations analytically, but in our numerical solution, let $y_1 \equiv [A]$ and $y_2 \equiv [B]$:
 <p align='center'>
-    $$\begin{align} \frac{dy_1}{dt} &= -k_1 y_1 \\ \frac{dy_2}{dt} &= k_1 y_1 - k_2 y_2 \end{align}$$ 
+    $$\begin{align} \frac{dy_1}{dt} &= -k_1 y_1 \quad (8) \\ \frac{dy_2}{dt} &= k_1 y_1 - k_2 y_2 \quad(9) \end{align}$$ 
 </p>
 
-The derivative function would then be difined as:
+The derivative function would then be defined as:
 ```
 def deriv(t, y):
     """return dy_i/dt for each y_i at time t,"""
@@ -279,6 +279,117 @@ The solver successfully reached the end of the integration interval.
 Figure 2. Numerical solution to the ODE governing the reaction the sequence $A \rightarrow B \rightarrow P$ for rate constant $k_1 = 0.2 \ s^{-1}, \ k_2 = 0.8 \ s^{-1}$ and taking $[A]_0 = 100 \ mol \ dm^{-3}, \ [B]_0 = [P]_0 = 0$.
 </p>
 
+## Example - The Chapman Mechanism
+Ozone destruction and regeneration occur naturally in the stratosphere. A simple mechanism for the formation consists of following four reactions (known as the _[Chapman cycle](https://en.wikipedia.org/wiki/Herbert_Chapman)_ in 1930):
+
+<div align='center'>
+    $$\mbox{Chapman Mechanism of Ozone Production and Destriction}$$
+</div>
+
+<div align='center'>
+
+|Reaction | Rate| Kinetics order |
+|--------------------------|--------------------------|----------|
+|1) $O_2 + hv \longrightarrow O + O $ | Slow (creates odd oxygen)| $k_1 = 3 \times 10^{-12} \ s^{-1}$ |
+|2) $O + O_2 + M \longrightarrow O_3 + M$ | Fast (creates ozone)| $k_2 = 1.2 \times 10^{-33} \ cm^6 molec^{-2} s^{-1}$ |
+|3) $O_3 + hv \longrightarrow O_2 + O$ | Fast (destroy ozone) | $k_3 = 5.5 \times 10^{-4} \ s^{-1}$ |
+|4) $O + O_3 \longrightarrow 2O_2$ | Slow (destroys odd oxygen)| $k_4 = 6.9 \times 10^{-16} \ cm^3 molec^{-1} s^{-1}$|
+
+</div>
+
+where M is any non-reactive species that can take up the energy released in reaction (2) to stabilize $O_3$. $O_3$ is not a very stable molecule and (without the presence of M) the $O_3$ formed by the collision of $O_2$ and $O$ would immediately fall apart to give back $O$ and $O_2$. Given that $N_2$ and $O_2$ are the major components in the atmosphere, M is either $O_2$ or $N_2$. These reactions lead to the following rate equations for $[O], \ [O_3]$ and $[ O_2]$:
+
+<p align='center'>
+    $$\begin{align} \frac{d[O_2]}{dt} &= -k_1 [O_2] - k_2 [O_2] [O] [M] + k_3 [O_3] + 2k_4 [O] [O_3] \quad(10 \\ \frac{d[O]}{dt} &= 2k_1[O_2] - k_2 [O_2] [O] [M] + k_3 [O_3] - k_4 [O] [O_3] \quad(11) \\ \frac{d[O_3]}{dt} &= k_2[O_2][O][M] -k_3[O_3] -k_4[O][O_3] \quad(12) \end{align}$$ 
+</p>
+
+the rate constants $k_1$ and $k_3$ depend on light intensity, which in this case is the light intensity of the sun. The rate constants apply at an altitude of 25 km, where $[M] = 9 \times 10^{17} \ molec \ cm^{-3}$.
+
+We can use the __steady-state approximation__ to solve for the concentration of $O$ and $O_3$. The steady-state approximation assumes that after an initial time period, the concentration of the reaction intermediates remain a constant with time, i.e the rate of change of the intermediate's concentration with time is zero. Hence, using the steady state approximation
+
+<p align='center'>
+    $$\frac{d[O]}{dt} =\frac{d[O_3]}{dt} = 0 \quad(13)$$
+</p>
+
+we can solve for $[O]$ and $[O_3]$
+
+<p align='center'>
+    $$\begin{align} [O] &=\frac{2k_1 [O_2] + k_3 [O_3]}{k_2 [O_2] [M]+ k_4[O_3]} \quad(14) \\ [O_3] &=\sqrt{\frac{k_1 k_2}{k_3 k_4}} [O_2] [M]^{\frac{1}{2}} \quad(15) \\ \frac{[O]}{[O_3]} &= \frac{k_3}{k_2 [O_2][M]} \quad(16) \end{align}$$
+</p>
+
+The Chapman mechanism have been very well studied and the rate constant for these reactions at different altitudes are known. For example, this code performs numerical integration of the above ODE using `scipy.integrate.solve_ivp` and compare the result with the steady-state values above.
+
+```Python
+import numpy as np
+from scipy.integrate import solve_ivp
+import matplotlib.pyplot as plt
+
+# Reaction rate constant
+k1 = 3.e-12
+k2 = 1.2e-33
+k3 = 5.5e-4
+k4 = 6.9e-16
+
+# Return the dx/dt for each reactions
+def deriv(t, c, M):
+    O2, O, O3 = c # ozone formation reaction O + O2 + M => O3 + M
+    dO2dt = -k1*O2 - k2*O2*O*M + k3 * O3 + 2 *k4 * O * O3
+    dOdt = 2*k1*O2 - k2 * O2*O*M + k3*O3 - k4*O*O3
+    dO3dt = k2*O2*O*M -k3*O3 -k4*O*O3
+    return dO2dt, dOdt, dO3dt
+
+# Total molecule concentration, M, and O2 concentration, cO2
+M = 9.e17
+cO2 = 0.21 * M #Referring to the concentration or partial pressure of oxygen in the air 20.95% OR 0.21
+
+# Initial conditions for [O2], [O], [O3]
+c0 = [cO2, 0, 0]
+
+# Integrate the differential equations over a suitable time grid (s).
+ti, tf = 0, 5.e7 # approximately 1.5 years typical
+
+# NB We need a solver that is robust to stiff ODE
+soln = solve_ivp(deriv, (ti, tf), c0, args=(M,), method='LSODA')
+t, c = soln.t, soln.y
+
+# Steady state approximation solution for comparison
+cO3ss = np.sqrt(k1 * k2 / k3 / k4 * M) * cO2
+cOss = cO3ss * k3 / k2 /cO2 / M
+
+
+print('Numerical values:\n[O] = {:g} molec/cm3, [O3] = {:g} molec/cm3'.format(*c[1:, -1]))
+print('Steady-state values:\n[O]ss={:g} molec/cm3, [O3]ss= {:g} molec/cm3'.format(cOss, cO3ss))
+```
+The output shows that the steady-state approximation works well at this altitude:
+```
+Numerical values:
+[O] = 4.69124e+07 molec/cm3, [O3] = 1.7407e+13 molec/cm3
+Steady-state values:
+[O]ss=4.7055e+07 molec/cm3, [O3]ss= 1.74634e+13 molec/cm3
+```
+
+```Python
+# Plot the evolution of [O3] and [O] with time
+plt.plot(t, c[2],'D', label=r'$\mathrm{[O_3]}$')
+plt.plot(t, c[1],'^', label=r'$\mathrm{[O]}$')
+plt.yscale('log')
+plt.ylim(1.e5, 1.e14)
+plt.xlabel(r'$t / \mathrm{s}$')
+plt.ylabel(r'$[\cdot] / \ \mathrm{molec \ cm^{-3}}$')
+plt.legend()
+plt.title('The Chapman cycle for generating ozone')
+plt.savefig('The Chapman cycle for generating ozone.svg', bbox_inches ='tight')
+plt.show()
+```
+Clearly, the steady-state approximation works well for this system (Figure 3)
+
+<div align='center'>
+<img src="https://github.com/dindagustiayu/First-Order-Differential-Equations-in-Chemistry/blob/main/First%20ODE%20Kinetic%20reactions/The%20Chapman%20cycle%20for%20generating%20ozone.svg">
+</div>
+
+<p align='center'>
+$$\mbox{Figure 3. Ozone and Oxygen atom concentrations rapidly reach a steady-state under the Chapman Cycle reaction mechanism}$$
+</p>
 
 ## Conclusion
 1. The first-order equations is  a simple modle assumption and defining the boundary conditions to describe many processes in chemistry and physics.
